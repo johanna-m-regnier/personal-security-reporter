@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+{% set run = view.run %}
+<section class="page-heading page-heading--split">
+    <div>
+        <p class="eyebrow">Recorded run</p>
+        <h1>{{ run.run_id }}</h1>
+        <p>{{ run.started_at|display_time }} · {{ run.computer_name }}</p>
+    </div>
+    <span class="severity-pill severity-pill--{{ (run.overall_status or 'unfinished')|lower }}">{{ run.overall_status or 'Unfinished' }}</span>
+</section>
+
+<section class="detail-grid">
+    <article class="panel"><span>Status</span><strong>{{ run.overall_status or 'Unfinished' }}</strong></article>
+    <article class="panel"><span>Exit code</span><strong>{{ run.exit_code if run.exit_code is not none else '—' }}</strong></article>
+    <article class="panel"><span>Delivery</span><strong>{{ run.delivery_status or 'Unknown' }}</strong></article>
+    <article class="panel"><span>Finished</span><strong>{{ run.finished_at|display_time }}</strong></article>
+</section>
+
+{% if not view.report.available %}
+    <div class="notice notice--warning">
+        <strong>Report evidence unavailable.</strong> {{ view.report.message }}
+        {% if view.report.filename %}<div class="muted">Referenced file: {{ view.report.filename }}</div>{% endif %}
+    </div>
+{% else %}
+    {% set report = view.prepared_report %}
+    <section class="host-strip">
+        <div><span>OS</span><strong>{{ report.host.operating_system or 'Unknown' }}</strong></div>
+        <div><span>User</span><strong>{{ report.host.current_user or 'Unknown' }}</strong></div>
+        <div><span>Processes</span><strong>{{ report.host.process_count if report.host.process_count is not none else 'Unknown' }}</strong></div>
+        <div><span>Baseline</span><strong>{{ report.baseline.status or 'Unknown' }}</strong></div>
+    </section>
+
+    {% for severity in ['CRITICAL', 'WARNING', 'INFO'] %}
+        {% set findings = report.findings_by_severity[severity] %}
+        {% if findings %}
+            <section class="finding-section">
+                <div class="section-heading"><h2>{{ severity|title }}</h2><span>{{ findings|length }}</span></div>
+                <div class="finding-list">
+                    {% for finding in findings %}
+                        {% include "_finding_card.html" %}
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+    {% endfor %}
+{% endif %}
+{% endblock %}

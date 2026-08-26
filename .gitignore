@@ -1,0 +1,24 @@
+# Generated security reports
+output/
+
+# Credentials and environment files
+.env
+.env.*
+*.pem
+*.key
+
+# Python-generated files
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# macOS files
+.DS_Store
+
+# Application logs
+logs/
+*.log
+
+# Local security baseline
+data/
+.venv/

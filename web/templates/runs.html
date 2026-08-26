@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Audit trail</p>
+        <h1>Run history</h1>
+        <p>SQLite-backed execution, delivery, and report status. Newest runs appear first.</p>
+    </div>
+</section>
+
+{% if data_error %}
+    <div class="notice notice--error"><strong>Ledger unavailable.</strong> {{ data_error }}</div>
+{% elif not runs %}
+    <div class="empty-state"><h2>No ledger rows</h2><p>Nothing has been recorded yet.</p></div>
+{% else %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Started</th>
+                    <th>Run</th>
+                    <th>Status</th>
+                    <th>Findings</th>
+                    <th>Delivery</th>
+                    <th>Exit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs %}
+                    <tr>
+                        <td>{{ run.started_at|display_time }}</td>
+                        <td><a href="{{ url_for('run_detail', run_id=run.run_id) }}"><code>{{ run.run_id }}</code></a></td>
+                        <td><span class="severity-pill severity-pill--{{ (run.overall_status or 'unfinished')|lower }}">{{ run.overall_status or 'Unfinished' }}</span></td>
+                        <td>{{ run.critical_count or 0 }}C · {{ run.warning_count or 0 }}W · {{ run.info_count or 0 }}I</td>
+                        <td>{{ run.delivery_status or 'unknown' }}</td>
+                        <td>{{ run.exit_code if run.exit_code is not none else '—' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,27 @@
+<article class="finding-card severity-{{ finding.severity|lower }}">
+    <div class="finding-card__topline">
+        <span class="severity-pill severity-pill--{{ finding.severity|lower }}">{{ finding.severity }}</span>
+        <span class="kind-label">{{ finding.kind }}</span>
+        {% if finding.acknowledged %}<span class="ack-label">Acknowledged</span>{% endif %}
+    </div>
+    <h3><a href="{{ url_for('finding_detail', finding_id=finding.id) }}">{{ finding.message }}</a></h3>
+    <div class="finding-meta">
+        <span>ID <code>{{ finding.id }}</code></span>
+    </div>
+
+    {% if finding.triage and finding.triage.status == 'available' %}
+        <div class="triage-inline">
+            <div class="triage-inline__heading">
+                <strong>AI triage</strong>
+                <span class="confidence">{{ finding.triage.response.confidence }} confidence</span>
+            </div>
+            <p>{{ finding.triage.response.explanation }}</p>
+            <span class="benign-flag">Likely benign: {{ 'Yes' if finding.triage.response.likely_benign else 'No' }}</span>
+        </div>
+    {% elif finding.triage and finding.triage.status == 'unavailable' %}
+        <div class="triage-inline triage-inline--unavailable">
+            <strong>AI triage unavailable</strong>
+            <p>{{ finding.triage.error }}</p>
+        </div>
+    {% endif %}
+</article>

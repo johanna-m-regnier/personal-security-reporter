@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+{% set occurrence = view.latest_occurrence %}
+<section class="page-heading page-heading--split">
+    <div>
+        <p class="eyebrow">Finding detail</p>
+        <h1><code>{{ view.finding_id }}</code></h1>
+        {% if occurrence %}<p>{{ occurrence.finding.message }}</p>{% else %}<p>The source report is unavailable; preserved ledger annotations are shown below.</p>{% endif %}
+    </div>
+    {% if occurrence %}<span class="severity-pill severity-pill--{{ occurrence.finding.severity|lower }}">{{ occurrence.finding.severity }}</span>{% endif %}
+</section>
+
+{% if view.acknowledged is true %}
+    <div class="notice notice--success"><strong>Acknowledged.</strong> Future matching findings remain visible but are excluded from AI triage.</div>
+{% elif view.acknowledged is false %}
+    <form class="action-panel" method="post" action="{{ url_for('acknowledge_finding', finding_id=view.finding_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div><strong>Known and accepted condition?</strong><p>Acknowledgement changes baseline state; it does not delete evidence or rewrite severity.</p></div>
+        <button class="button" type="submit">Acknowledge finding</button>
+    </form>
+{% else %}
+    <div class="notice notice--warning"><strong>Acknowledgement unavailable.</strong> {{ view.baseline_error }}</div>
+{% endif %}
+
+{% if occurrence %}
+    <section class="two-column">
+        <article class="panel panel--large">
+            <div class="panel-heading"><h2>Observed evidence</h2><span>{{ occurrence.run.started_at|display_time }}</span></div>
+            <dl class="key-values">
+                <div><dt>Kind</dt><dd>{{ occurrence.finding.kind }}</dd></div>
+                <div><dt>Run</dt><dd><a href="{{ url_for('run_detail', run_id=occurrence.run.run_id) }}"><code>{{ occurrence.run.run_id }}</code></a></dd></div>
+                <div><dt>Current acknowledgement</dt><dd>{{ 'Yes' if view.acknowledged else 'No' }}</dd></div>
+            </dl>
+            <h3>Identity</h3>
+            <pre>{{ occurrence.finding.identity_json }}</pre>
+            <h3>Details</h3>
+            <pre>{{ occurrence.finding.details_json }}</pre>
+        </article>
+
+        <aside class="panel occurrence-panel">
+            <div class="panel-heading"><h2>Occurrences</h2><span>{{ view.occurrences|length }}</span></div>
+            <ol class="timeline">
+                {% for item in view.occurrences %}
+                    <li>
+                        <a href="{{ url_for('run_detail', run_id=item.run.run_id) }}"><code>{{ item.run.run_id }}</code></a>
+                        <span>{{ item.run.started_at|display_time }}</span>
+                        <small>{{ item.finding.severity }} · {{ 'acknowledged then' if item.finding.acknowledged else 'unacknowledged then' }}</small>
+                    </li>
+                {% endfor %}
+            </ol>
+        </aside>
+    </section>
+{% endif %}
+
+<section class="finding-section">
+    <div class="section-heading">
+        <h2>AI annotations</h2>
+        <span>{{ view.annotations|length }}</span>
+    </div>
+
+    {% if not view.annotations %}
+        <div class="empty-state empty-state--compact"><p>No AI annotation was recorded for this finding.</p></div>
+    {% else %}
+        <div class="annotation-list">
+            {% for item in view.annotations %}
+                {% set annotation = item.annotation %}
+                <article class="annotation" id="annotation-{{ item.anchor }}">
+                    <header>
+                        <div>
+                            <p class="eyebrow">Immutable model annotation</p>
+                            <h3>{{ annotation.model }}</h3>
+                        </div>
+                        <span class="confidence confidence--{{ item.response.confidence }}">{{ item.response.confidence }} confidence</span>
+                    </header>
+
+                    <p class="annotation-explanation">{{ item.response.explanation }}</p>
+                    <div class="annotation-grid">
+                        <div><span>Likely benign</span><strong>{{ 'Yes' if item.response.likely_benign else 'No' }}</strong></div>
+                        <div><span>Created</span><strong>{{ annotation.created_at|display_time }}</strong></div>
+                        <div><span>Current verdict</span><strong>{{ annotation.human_verdict|title if annotation.human_verdict else 'Not reviewed' }}</strong></div>
+                        <div><span>Verdict updated</span><strong>{{ annotation.verdict_at|display_time if annotation.verdict_at else '—' }}</strong></div>
+                    </div>
+
+                    <h4>Investigation steps</h4>
+                    <ol class="steps">
+                        {% for step in item.response.investigation_steps %}<li>{{ step }}</li>{% endfor %}
+                    </ol>
+
+                    <details>
+                        <summary>Audit metadata</summary>
+                        <dl class="key-values key-values--stacked">
+                            <div><dt>Prompt hash</dt><dd><code>{{ annotation.prompt_hash }}</code></dd></div>
+                            <div><dt>Source run</dt><dd><code>{{ annotation.run_id }}</code></dd></div>
+                        </dl>
+                    </details>
+
+                    <div class="verdict-box">
+                        <div>
+                            <strong>Was this annotation accurate?</strong>
+                            <p>Each click appends a verdict tied to this exact prompt hash.</p>
+                        </div>
+                        <form class="verdict-actions" method="post" action="{{ url_for('record_verdict', finding_id=view.finding_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="prompt_hash" value="{{ annotation.prompt_hash }}">
+                            <button type="submit" name="verdict" value="accurate" class="button button--positive">Accurate</button>
+                            <button type="submit" name="verdict" value="wrong" class="button button--negative">Wrong</button>
+                            <button type="submit" name="verdict" value="unsure" class="button button--secondary">Unsure</button>
+                        </form>
+                    </div>
+
+                    <div class="verdict-history">
+                        <h4>Append-only verdict trail</h4>
+                        {% if item.verdict_history %}
+                            <ol class="timeline">
+                                {% for verdict in item.verdict_history %}
+                                    <li><strong>{{ verdict.verdict|title }}</strong><span>{{ verdict.verdict_at|display_time }}</span></li>
+                                {% endfor %}
+                            </ol>
+                        {% else %}
+                            <p class="muted">No human verdict recorded yet.</p>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
+{% if view.unavailable_reports %}
+    <details class="notice notice--warning">
+        <summary>{{ view.unavailable_reports|length }} referenced report file(s) could not be inspected</summary>
+        <ul>
+            {% for report in view.unavailable_reports %}<li><code>{{ report.run_id }}</code>: {{ report.message }}</li>{% endfor %}
+        </ul>
+    </details>
+{% endif %}
+{% endblock %}

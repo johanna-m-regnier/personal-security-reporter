@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>{{ page_title }} · PSR</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('index') }}" aria-label="Personal Security Reporter home">
+            <span class="brand-mark">PSR</span>
+            <span>
+                <strong>Personal Security Reporter</strong>
+                <small>Local review console</small>
+            </span>
+        </a>
+        <nav aria-label="Primary navigation">
+            <a href="{{ url_for('index') }}">Latest</a>
+            <a href="{{ url_for('runs') }}">Run history</a>
+        </nav>
+        <span class="local-only"><span class="pulse"></span>127.0.0.1 only</span>
+    </header>
+
+    <main class="shell">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        AI output is annotation, not authority. No scan execution is exposed over HTTP.
+    </footer>
+</body>
+</html>

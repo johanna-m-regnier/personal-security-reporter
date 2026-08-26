@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Current posture</p>
+        <h1>Latest security run</h1>
+        <p>Review evidence, close the AI verdict loop, and acknowledge known conditions without rerunning the collector.</p>
+    </div>
+</section>
+
+{% if data_error %}
+    <div class="notice notice--error"><strong>Ledger unavailable.</strong> {{ data_error }}</div>
+{% elif not latest %}
+    <div class="empty-state">
+        <h2>No runs recorded</h2>
+        <p>Run <code>python main.py</code> first. The dashboard does not execute collectors.</p>
+    </div>
+{% else %}
+    {% set run = latest.run %}
+    <section class="run-banner status-{{ (run.overall_status or 'unfinished')|lower }}">
+        <div>
+            <p class="eyebrow">Run {{ run.run_id }}</p>
+            <h2>{{ run.overall_status or 'Unfinished' }}</h2>
+            <p>{{ run.started_at|display_time }} · {{ run.computer_name }}</p>
+        </div>
+        <a class="button button--secondary" href="{{ url_for('run_detail', run_id=run.run_id) }}">Open run detail</a>
+    </section>
+
+    {% if not latest.report.available %}
+        <div class="notice notice--warning">
+            <strong>Report evidence unavailable.</strong> {{ latest.report.message }}
+        </div>
+    {% else %}
+        {% set report = latest.prepared_report %}
+        <section class="metric-grid" aria-label="Run summary">
+            <article class="metric metric--critical"><span>Critical</span><strong>{{ report.summary.critical_count or 0 }}</strong></article>
+            <article class="metric metric--warning"><span>Warning</span><strong>{{ report.summary.warning_count or 0 }}</strong></article>
+            <article class="metric metric--info"><span>Info</span><strong>{{ report.summary.info_count or 0 }}</strong></article>
+            <article class="metric"><span>AI calls</span><strong>{{ report.triage.api_calls or 0 }}</strong></article>
+            <article class="metric"><span>Cache hits</span><strong>{{ report.triage.cache_hits or 0 }}</strong></article>
+        </section>
+
+        <section class="host-strip">
+            <div><span>Host</span><strong>{{ report.host.computer_name or 'Unknown' }}</strong></div>
+            <div><span>OS</span><strong>{{ report.host.operating_system or 'Unknown' }}</strong></div>
+            <div><span>Processes</span><strong>{{ report.host.process_count if report.host.process_count is not none else 'Unknown' }}</strong></div>
+            <div><span>Uptime</span><strong>{{ report.host.uptime_text or 'Unknown' }}</strong></div>
+        </section>
+
+        {% for severity in ['CRITICAL', 'WARNING', 'INFO'] %}
+            {% set findings = report.findings_by_severity[severity] %}
+            {% if findings %}
+                <section class="finding-section">
+                    <div class="section-heading">
+                        <h2>{{ severity|title }} findings</h2>
+                        <span>{{ findings|length }}</span>
+                    </div>
+                    <div class="finding-list">
+                        {% for finding in findings %}
+                            {% include "_finding_card.html" %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endif %}
+{% endblock %}
